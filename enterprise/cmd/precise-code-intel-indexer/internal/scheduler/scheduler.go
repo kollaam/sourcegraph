@@ -84,7 +84,7 @@ func (s *Scheduler) queueIndex(ctx context.Context, indexableRepository store.In
 		return errors.Wrap(err, "gitserver.Head")
 	}
 
-	isQueued, err := s.store.IsQueued(ctx, indexableRepository.RepositoryID, commit)
+	isQueued, err := s.store.IsQueued(ctx, indexableRepository.RepositoryID, commit) // TODO - expand this check?
 	if err != nil {
 		return errors.Wrap(err, "store.IsQueued")
 	}
@@ -100,16 +100,29 @@ func (s *Scheduler) queueIndex(ctx context.Context, indexableRepository store.In
 		err = tx.Done(err)
 	}()
 
-	id, err := tx.InsertIndex(ctx, store.Index{
-		State:           "queued",
-		Commit:          commit,
-		RepositoryID:    indexableRepository.RepositoryID,
-		InstallImage:    "",
-		InstallCommands: []string{},
-		Root:            "",
-		Indexer:         "sourcegraph/lsif-go:latest",
-		Arguments:       []string{},
-	})
+	index := store.Index{
+		State:        "queued",
+		Commit:       commit,
+		RepositoryID: indexableRepository.RepositoryID,
+		Root:         "", // TODO
+	}
+
+	isGo, err := s.gitserverClient.FileExists(ctx, s.store, indexableRepository.RepositoryID, commit, "go.mod")
+	if err != nil {
+		return errors.Wrap(err, "gitserver.FileExists")
+	}
+
+	if isGo {
+		index.Indexer = "sourcegraph/lsif-go:latest"
+		index.Arguments = []string{"lsif-go", "--no-animation"}
+	} else {
+		index.InstallImage = "circleci/node:12"
+		index.InstallCommands = []string{"yarn", "install", "--frozen-lockfile", "--non-interactive"}
+		index.Indexer = "sourcegraph/lsif-node:latest"
+		index.Arguments = []string{"lsif-tsc", "-p", "."}
+	}
+
+	id, err := tx.InsertIndex(ctx, index)
 	if err != nil {
 		return errors.Wrap(err, "store.QueueIndex")
 	}

@@ -72,7 +72,8 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		mountPoint = "/repo-dir"
 
 		images := map[string]string{
-			"lsif-go": "sourcegraph/lsif-go:latest",
+			"install": index.InstallImage,
+			"indexer": index.Indexer,
 			"src-cli": "sourcegraph/src-cli:latest",
 		}
 
@@ -143,17 +144,12 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 	}
 
 	if index.InstallImage != "" {
-		workingDirectory := "/data"
-		if index.Root != "" {
-			workingDirectory = filepath.Join(workingDirectory, index.Root)
-		}
-
 		installationArgs := []string{
 			"docker", "run", "--rm",
 			"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
 			"--memory", h.options.FirecrackerMemory,
 			"-v", fmt.Sprintf("%s:/data", mountPoint),
-			"-w", "/data", // TODO - document that this is always in root
+			"-w", "/data", // TODO - decide if this can be configured
 			index.InstallImage,
 		}
 		installationArgs = append(installationArgs, index.InstallCommands...)
@@ -179,8 +175,7 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		"-w", workingDirectory,
 		index.Indexer,
 	}
-	// TODO - requires lsif-go, there isn't a defined entrypoint
-	indexArgs = append(indexArgs, index.Arguments...) // "--no-animation", // TODO
+	indexArgs = append(indexArgs, index.Arguments...)
 
 	if h.options.UseFirecracker {
 		indexArgs = append([]string{"ignite", "exec", name.String(), "--"}, indexArgs...)
