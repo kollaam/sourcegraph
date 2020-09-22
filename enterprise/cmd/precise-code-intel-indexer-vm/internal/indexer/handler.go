@@ -71,15 +71,15 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 	if h.options.UseFirecracker {
 		mountPoint = "/repo-dir"
 
-		images := []string{
-			"lsif-go",
-			"src-cli",
+		images := map[string]string{
+			"lsif-go": "sourcegraph/lsif-go:latest",
+			"src-cli": "sourcegraph/src-cli:latest",
 		}
 
 		copyfiles := []string{}
-		for _, image := range images {
-			tarfile := filepath.Join(h.options.ImageArchivePath, fmt.Sprintf("%s.tar", image))
-			copyfiles = append(copyfiles, "--copy-files", fmt.Sprintf("%s:%s", tarfile, fmt.Sprintf("/%s.tar", image)))
+		for key, image := range images {
+			tarfile := filepath.Join(h.options.ImageArchivePath, fmt.Sprintf("%s.tar", key))
+			copyfiles = append(copyfiles, "--copy-files", fmt.Sprintf("%s:%s", tarfile, fmt.Sprintf("/%s.tar", key)))
 
 			if _, err := os.Stat(tarfile); err == nil {
 				continue
@@ -87,11 +87,11 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 				return err
 			}
 
-			if err := h.commander.Run(ctx, "docker", "pull", fmt.Sprintf("sourcegraph/%s:latest", image)); err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed to pull sourcegraph/%s:latest", image))
+			if err := h.commander.Run(ctx, "docker", "pull", image); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed to pull %s", image))
 			}
-			if err := h.commander.Run(ctx, "docker", "save", "-o", tarfile, fmt.Sprintf("sourcegraph/%s:latest", image)); err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed to save sourcegraph/%s:latest", image))
+			if err := h.commander.Run(ctx, "docker", "save", "-o", tarfile, image); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed to save %s", image))
 			}
 		}
 
@@ -135,11 +135,40 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 			}
 		}()
 
-		for _, image := range images {
-			if err := h.commander.Run(ctx, "ignite", "exec", name.String(), "--", "docker", "load", "-i", fmt.Sprintf("/%s.tar", image)); err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed to load sourcegraph/%s:latest", image))
+		for key, image := range images {
+			if err := h.commander.Run(ctx, "ignite", "exec", name.String(), "--", "docker", "load", "-i", fmt.Sprintf("/%s.tar", key)); err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed to load %s", image))
 			}
 		}
+	}
+
+	if index.InstallImage != "" {
+		workingDirectory := "/data"
+		if index.Root != "" {
+			workingDirectory = filepath.Join(workingDirectory, index.Root)
+		}
+
+		installationArgs := []string{
+			"docker", "run", "--rm",
+			"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
+			"--memory", h.options.FirecrackerMemory,
+			"-v", fmt.Sprintf("%s:/data", mountPoint),
+			"-w", "/data", // TODO - document that this is always in root
+			index.InstallImage,
+		}
+		installationArgs = append(installationArgs, index.InstallCommands...)
+
+		if h.options.UseFirecracker {
+			installationArgs = append([]string{"ignite", "exec", name.String(), "--"}, installationArgs...)
+		}
+		if err := h.commander.Run(ctx, installationArgs[0], installationArgs[1:]...); err != nil {
+			return errors.Wrap(err, "failed to install project")
+		}
+	}
+
+	workingDirectory := "/data"
+	if index.Root != "" {
+		workingDirectory = filepath.Join(workingDirectory, index.Root)
 	}
 
 	indexArgs := []string{
@@ -147,11 +176,12 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
 		"--memory", h.options.FirecrackerMemory,
 		"-v", fmt.Sprintf("%s:/data", mountPoint),
-		"-w", "/data",
-		"sourcegraph/lsif-go:latest",
-		"lsif-go",
-		"--no-animation",
+		"-w", workingDirectory,
+		index.Indexer,
 	}
+	// TODO - requires lsif-go, there isn't a defined entrypoint
+	indexArgs = append(indexArgs, index.Arguments...) // "--no-animation", // TODO
+
 	if h.options.UseFirecracker {
 		indexArgs = append([]string{"ignite", "exec", name.String(), "--"}, indexArgs...)
 	}

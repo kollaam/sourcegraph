@@ -12,7 +12,7 @@ type BranchConfiguration struct {
 
 type IndexJob struct {
 	Root    string
-	Install InstallationConfiguration
+	Install InstallationConfiguration // TODO - rename installation
 	Index   IndexConfiguration
 }
 
