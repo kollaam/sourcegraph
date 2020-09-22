@@ -1,5 +1,7 @@
 package index
 
+// TODO - these are very bad names
+
 type AutoIndexConfiguration struct {
 	Branches  BranchConfiguration
 	IndexJobs []IndexJob
@@ -12,7 +14,7 @@ type BranchConfiguration struct {
 
 type IndexJob struct {
 	Root    string
-	Install InstallationConfiguration // TODO - rename installation
+	Install InstallationConfiguration
 	Index   IndexConfiguration
 }
 
