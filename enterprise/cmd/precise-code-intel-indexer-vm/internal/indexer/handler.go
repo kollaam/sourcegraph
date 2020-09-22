@@ -189,7 +189,7 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
 		"--memory", h.options.FirecrackerMemory,
 		"-v", fmt.Sprintf("%s:/data", mountPoint),
-		"-w", "/data",
+		"-w", workingDirectory,
 		"-e", fmt.Sprintf("SRC_ENDPOINT=%s", uploadURL.String()),
 		"sourcegraph/src-cli:latest",
 		"lsif", "upload",
