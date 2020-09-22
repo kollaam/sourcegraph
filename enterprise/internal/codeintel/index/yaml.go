@@ -44,20 +44,27 @@ func UnmarshalYAML(data []byte) (AutoIndexConfiguration, error) {
 			Root: indexJob.Root,
 			Install: InstallationConfiguration{
 				Image:    indexJob.Install.Image,
-				Commands: indexJob.Install.Commands,
+				Commands: sliceize(indexJob.Install.Commands),
 			},
 			Index: IndexConfiguration{
 				Indexer:   indexJob.Index.Indexer,
-				Arguments: indexJob.Index.Arguments,
+				Arguments: sliceize(indexJob.Index.Arguments),
 			},
 		})
 	}
 
 	return AutoIndexConfiguration{
 		Branches: BranchConfiguration{
-			Include: configuration.Branches.Include,
-			Exclude: configuration.Branches.Exclude,
+			Include: sliceize(configuration.Branches.Include),
+			Exclude: sliceize(configuration.Branches.Exclude),
 		},
 		IndexJobs: indexJobs,
 	}, nil
+}
+
+func sliceize(v []string) []string {
+	if v == nil {
+		return []string{}
+	}
+	return v
 }

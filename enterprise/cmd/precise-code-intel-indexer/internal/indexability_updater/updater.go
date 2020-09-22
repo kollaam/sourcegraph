@@ -82,7 +82,7 @@ func (u *Updater) queueRepository(ctx context.Context, repoUsageStatistics store
 	}
 
 	eligible := false
-	for _, filename := range []string{"go.mod", "tsconfig.json"} {
+	for _, filename := range []string{"go.mod", "tsconfig.json", "sourcegraph.yaml"} {
 		exists, err := u.gitserverClient.FileExists(ctx, u.store, repoUsageStatistics.RepositoryID, commit, filename)
 		if err != nil {
 			return errors.Wrap(err, "gitserver.FileExists")

@@ -36,12 +36,12 @@ type jsonIndexConfiguration struct {
 func UnmarshalJSON(data []byte) (AutoIndexConfiguration, error) {
 	jsonData, errs := jsonx.Parse(string(data), jsonx.ParseOptions{Comments: true, TrailingCommas: true})
 	if len(errs) > 0 {
-		return AutoIndexConfiguration{}, fmt.Errorf("invalid JSON1: %v", errs)
+		return AutoIndexConfiguration{}, fmt.Errorf("invalid JSON: %v", errs)
 	}
 
 	configuration := jsonAutoIndexConfiguration{}
 	if err := json.Unmarshal(jsonData, &configuration); err != nil {
-		return AutoIndexConfiguration{}, fmt.Errorf("invalid JSON2: %v", err)
+		return AutoIndexConfiguration{}, fmt.Errorf("invalid JSON: %v", err)
 	}
 
 	var indexJobs []IndexJob
@@ -50,19 +50,19 @@ func UnmarshalJSON(data []byte) (AutoIndexConfiguration, error) {
 			Root: indexJob.Root,
 			Install: InstallationConfiguration{
 				Image:    indexJob.Install.Image,
-				Commands: indexJob.Install.Commands,
+				Commands: sliceize(indexJob.Install.Commands),
 			},
 			Index: IndexConfiguration{
 				Indexer:   indexJob.Index.Indexer,
-				Arguments: indexJob.Index.Arguments,
+				Arguments: sliceize(indexJob.Index.Arguments),
 			},
 		})
 	}
 
 	return AutoIndexConfiguration{
 		Branches: BranchConfiguration{
-			Include: configuration.Branches.Include,
-			Exclude: configuration.Branches.Exclude,
+			Include: sliceize(configuration.Branches.Include),
+			Exclude: sliceize(configuration.Branches.Exclude),
 		},
 		IndexJobs: indexJobs,
 	}, nil

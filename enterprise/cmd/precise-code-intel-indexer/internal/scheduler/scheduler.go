@@ -7,6 +7,7 @@ import (
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/gitserver"
+	indexpkg "github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/index"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 	"github.com/sourcegraph/sourcegraph/internal/goroutine"
 	"github.com/sourcegraph/sourcegraph/internal/vcs"
@@ -100,31 +101,78 @@ func (s *Scheduler) queueIndex(ctx context.Context, indexableRepository store.In
 		err = tx.Done(err)
 	}()
 
-	index := store.Index{
-		State:        "queued",
-		Commit:       commit,
-		RepositoryID: indexableRepository.RepositoryID,
-		Root:         "", // TODO
-	}
-
-	isGo, err := s.gitserverClient.FileExists(ctx, s.store, indexableRepository.RepositoryID, commit, "go.mod")
+	isConfigured, err := s.gitserverClient.FileExists(ctx, s.store, indexableRepository.RepositoryID, commit, "sourcegraph.yaml")
 	if err != nil {
 		return errors.Wrap(err, "gitserver.FileExists")
 	}
 
-	if isGo {
-		index.Indexer = "sourcegraph/lsif-go:latest"
-		index.Arguments = []string{"lsif-go", "--no-animation"}
+	var indexes []store.Index
+
+	if isConfigured {
+		content, err := s.gitserverClient.Text(ctx, s.store, indexableRepository.RepositoryID, commit, "sourcegraph.yaml")
+		if err != nil {
+			return errors.Wrap(err, "gitserver.Text")
+		}
+
+		configuration, err := indexpkg.UnmarshalYAML(content)
+		if err != nil {
+			return errors.Wrap(err, "index.UnmarshalYAML")
+		}
+
+		for _, indexJob := range configuration.IndexJobs {
+			indexes = append(indexes, store.Index{
+				State:           "queued",
+				Commit:          commit,
+				RepositoryID:    indexableRepository.RepositoryID,
+				Root:            indexJob.Root,
+				InstallImage:    indexJob.Install.Image,
+				InstallCommands: indexJob.Install.Commands,
+				Indexer:         indexJob.Index.Indexer,
+				Arguments:       indexJob.Index.Arguments,
+			})
+		}
 	} else {
-		index.InstallImage = "circleci/node:12"
-		index.InstallCommands = []string{"yarn", "install", "--frozen-lockfile", "--non-interactive"}
-		index.Indexer = "sourcegraph/lsif-node:latest"
-		index.Arguments = []string{"lsif-tsc", "-p", "."}
+		index := store.Index{
+			State:        "queued",
+			Commit:       commit,
+			RepositoryID: indexableRepository.RepositoryID,
+		}
+
+		isGo, err := s.gitserverClient.FileExists(ctx, s.store, indexableRepository.RepositoryID, commit, "go.mod")
+		if err != nil {
+			return errors.Wrap(err, "gitserver.FileExists")
+		}
+
+		if isGo {
+			index.Root = "" // TODO
+			index.InstallImage = ""
+			index.InstallCommands = []string{}
+			index.Indexer = "sourcegraph/lsif-go:latest"
+			index.Arguments = []string{"lsif-go", "--no-animation"}
+		} else {
+			index.Root = "" // TODO
+			index.InstallImage = "circleci/node:12"
+			index.InstallCommands = []string{"yarn", "install", "--frozen-lockfile", "--non-interactive"}
+			index.Indexer = "sourcegraph/lsif-node:latest"
+			index.Arguments = []string{"lsif-tsc", "-p", "."}
+		}
+
+		indexes = append(indexes, index)
 	}
 
-	id, err := tx.InsertIndex(ctx, index)
-	if err != nil {
-		return errors.Wrap(err, "store.QueueIndex")
+	for _, index := range indexes {
+		id, err := tx.InsertIndex(ctx, index)
+		if err != nil {
+			return errors.Wrap(err, "store.QueueIndex")
+		}
+
+		log15.Info(
+			"Enqueued index",
+			"id", id,
+			"repository_id", indexableRepository.RepositoryID,
+			"commit", commit,
+		)
+
 	}
 
 	now := time.Now().UTC()
@@ -136,13 +184,6 @@ func (s *Scheduler) queueIndex(ctx context.Context, indexableRepository store.In
 	if err := tx.UpdateIndexableRepository(ctx, update, now); err != nil {
 		return errors.Wrap(err, "store.UpdateIndexableRepository")
 	}
-
-	log15.Info(
-		"Enqueued index",
-		"id", id,
-		"repository_id", indexableRepository.RepositoryID,
-		"commit", commit,
-	)
 
 	return nil
 }
