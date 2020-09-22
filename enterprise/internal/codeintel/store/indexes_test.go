@@ -30,16 +30,21 @@ func TestGetIndexByID(t *testing.T) {
 	queuedAt := time.Unix(1587396557, 0).UTC()
 	startedAt := queuedAt.Add(time.Minute)
 	expected := Index{
-		ID:             1,
-		Commit:         makeCommit(1),
-		QueuedAt:       queuedAt,
-		State:          "processing",
-		FailureMessage: nil,
-		StartedAt:      &startedAt,
-		FinishedAt:     nil,
-		RepositoryID:   123,
-		RepositoryName: "n-123",
-		Rank:           nil,
+		ID:              1,
+		Commit:          makeCommit(1),
+		QueuedAt:        queuedAt,
+		State:           "processing",
+		FailureMessage:  nil,
+		StartedAt:       &startedAt,
+		FinishedAt:      nil,
+		RepositoryID:    123,
+		RepositoryName:  "n-123",
+		InstallImage:    "cimg/node:12.16",
+		InstallCommands: []string{"yarn install --frozen-lockfile --no-progress"},
+		Root:            "/foo/bar",
+		Indexer:         "sourcegraph/lsif-tsc:latest",
+		Arguments:       []string{"lib/**/*.js", "test/**/*.js", "--allowJs", "--checkJs"},
+		Rank:            nil,
 	}
 
 	insertIndexes(t, dbconn.Global, expected)
@@ -272,9 +277,14 @@ func TestInsertIndex(t *testing.T) {
 	insertRepo(t, dbconn.Global, 50, "")
 
 	id, err := store.InsertIndex(context.Background(), Index{
-		Commit:       makeCommit(1),
-		State:        "queued",
-		RepositoryID: 50,
+		State:           "queued",
+		Commit:          makeCommit(1),
+		RepositoryID:    50,
+		InstallImage:    "cimg/node:12.16",
+		InstallCommands: []string{"yarn install --frozen-lockfile --no-progress"},
+		Root:            "/foo/bar",
+		Indexer:         "sourcegraph/lsif-tsc:latest",
+		Arguments:       []string{"lib/**/*.js", "test/**/*.js", "--allowJs", "--checkJs"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error enqueueing index: %s", err)
@@ -282,16 +292,21 @@ func TestInsertIndex(t *testing.T) {
 
 	rank := 1
 	expected := Index{
-		ID:             id,
-		Commit:         makeCommit(1),
-		QueuedAt:       time.Time{},
-		State:          "queued",
-		FailureMessage: nil,
-		StartedAt:      nil,
-		FinishedAt:     nil,
-		RepositoryID:   50,
-		RepositoryName: "n-50",
-		Rank:           &rank,
+		ID:              id,
+		Commit:          makeCommit(1),
+		QueuedAt:        time.Time{},
+		State:           "queued",
+		FailureMessage:  nil,
+		StartedAt:       nil,
+		FinishedAt:      nil,
+		RepositoryID:    50,
+		RepositoryName:  "n-50",
+		InstallImage:    "cimg/node:12.16",
+		InstallCommands: []string{"yarn install --frozen-lockfile --no-progress"},
+		Root:            "/foo/bar",
+		Indexer:         "sourcegraph/lsif-tsc:latest",
+		Arguments:       []string{"lib/**/*.js", "test/**/*.js", "--allowJs", "--checkJs"},
+		Rank:            &rank,
 	}
 
 	if index, exists, err := store.GetIndexByID(context.Background(), id); err != nil {

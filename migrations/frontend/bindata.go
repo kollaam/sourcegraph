@@ -72,6 +72,8 @@
 // 1528395718_user_invalidate_session.up.sql (1.252kB)
 // 1528395719_migration_sql.down.sql (308B)
 // 1528395719_migration_sql.up.sql (53B)
+// 1528395720_indexer_configuration_fields.down.sql (413B)
+// 1528395720_indexer_configuration_fields.up.sql (847B)
 
 package migrations
 
@@ -1580,6 +1582,46 @@ func _1528395719_migration_sqlUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __1528395720_indexer_configuration_fieldsDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x8c\x8f\xc1\x4e\xc4\x20\x14\x45\xf7\x7c\xc5\x5d\x9b\x49\x7f\xa0\x71\xd1\x19\x9f\x5a\x43\x8b\x69\x19\x67\x49\x88\xe0\x48\x52\xc0\x00\x8d\xfa\xf7\x66\x58\x39\x8e\x26\xae\xef\x39\x07\xde\x96\xee\xfa\xb1\x65\xec\x66\x12\x8f\x78\xea\xe9\x80\x25\xbb\x17\xe5\x82\xb1\x1f\x36\xab\x77\x57\x5e\x55\xb2\x6f\x31\xbb\x12\xd3\xa7\x0a\xda\xdb\x96\xb1\x8e\x4b\x9a\x20\xbb\x2d\xa7\x33\x9e\x01\x40\x4d\xed\x04\xdf\x0f\x23\x5c\xc8\x45\x2f\x8b\x72\x5e\x1f\xed\xe6\xcf\xf9\x39\x7a\xaf\x83\xc9\x97\x44\x8a\xb1\xfc\xe6\x9d\x9e\x4b\x97\x83\x4e\xc7\xd5\xdb\x50\x72\xcb\xd8\x6e\xa2\x4e\xd2\x3f\x8f\x42\x37\xd7\xd8\x4c\x9c\x76\x12\x6b\x73\xb5\x41\x6a\xea\xa2\x33\x7e\xc2\xb7\x93\x18\xce\x9a\x58\xab\xfd\x20\xfa\xb1\xc2\x48\x10\x23\x52\xe3\x0c\xae\xb1\x36\xdf\x7c\x67\x2a\x79\xb8\xa7\x89\x90\x1a\x63\x17\x5b\xac\x51\xba\xa0\x9f\x31\xee\x39\x3f\xfd\x5c\x0c\x43\x2f\x5b\xf6\x15\x00\x00\xff\xff\xe1\xd5\x20\x22\x9d\x01\x00\x00")
+
+func _1528395720_indexer_configuration_fieldsDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__1528395720_indexer_configuration_fieldsDownSql,
+		"1528395720_indexer_configuration_fields.down.sql",
+	)
+}
+
+func _1528395720_indexer_configuration_fieldsDownSql() (*asset, error) {
+	bytes, err := _1528395720_indexer_configuration_fieldsDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "1528395720_indexer_configuration_fields.down.sql", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x29, 0x3, 0x1e, 0xe9, 0x2e, 0x4d, 0x89, 0x31, 0x34, 0x5f, 0x13, 0x1a, 0xf1, 0x59, 0x1e, 0xd5, 0xe1, 0xf6, 0x14, 0xee, 0x83, 0x79, 0x72, 0x22, 0x3b, 0x8c, 0x8c, 0x78, 0x99, 0x71, 0xc8, 0x61}}
+	return a, nil
+}
+
+var __1528395720_indexer_configuration_fieldsUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x8c\x92\x51\x4f\xb3\x30\x14\x86\xef\xfb\x2b\xce\x1d\xc9\x17\x3e\xbc\x1f\xe1\x82\x8d\xaa\x18\xa0\x0b\x74\xee\xc2\x18\xd2\x8c\xca\x9a\x00\x5d\xda\x12\x67\x8c\xff\xdd\xac\xd3\x0d\x74\x0b\xde\x72\x9e\xf3\xf6\x79\x5b\xe6\xf8\x2e\xce\x7c\x84\xa2\x9c\x2c\xe1\x31\xc6\x6b\x68\xb4\x78\x29\x45\x57\xf1\x3d\xd7\xe5\xab\x30\xdb\x52\xf1\x9d\xd4\xc2\x48\xf5\x56\x76\xac\xe5\x3e\x42\x61\x42\x71\x0e\x34\x9c\x27\x78\xc4\x23\x00\x80\x30\x8a\x60\x41\x92\x55\x9a\x81\xe8\xb4\x61\x4d\x53\x8a\x96\xd5\x1c\x0c\xdf\x1b\xf7\x1a\xb2\x91\x6d\xcb\xba\x4a\x5b\xea\xe9\xf9\x17\xa7\xa4\x34\xd7\x12\x0e\x67\xab\xcb\x43\xa6\xea\xbe\xe5\x9d\xf9\xce\xf5\x11\x5a\x2d\xa3\x90\x8e\xbd\xa1\xc0\xd4\x6e\x8e\x85\x03\x70\x1c\x77\xf4\xfd\x64\x19\x80\xf3\xfe\xe1\xcc\x66\x43\x5b\xab\x38\xdc\x39\x7a\x05\xe0\x68\xd9\xab\x0d\xaf\x15\xdb\x6d\x6f\x0e\xe7\xfe\xaf\xe5\xac\x61\x86\x6b\xf3\xc5\x9e\x35\xc7\xc1\x93\x77\x6d\x87\x17\x6f\xbb\xc0\x14\x32\x42\x21\x5b\x25\x89\x7b\x1d\x3e\x35\x9a\xe0\x6d\xb9\xc9\xcc\x63\xe3\x09\xec\x5c\x76\x08\xfa\x08\x2d\x72\x7c\x78\x99\xbf\xfd\x86\x10\x16\x36\xba\xc0\x09\x5e\x50\xe8\xbd\x7f\x2e\x28\xcf\x4e\x98\x86\x9f\xf0\x6d\x4e\xd2\xf1\x93\xf7\x76\xfb\x81\xc4\x99\x85\x41\x01\xc9\x40\x79\xa2\x82\x00\x7a\x6f\xb0\x2f\x2a\x4b\xae\xef\x71\x8e\x41\x79\x15\x6f\xb8\xe1\x55\xc9\x0c\xc4\xc5\xc9\x9c\xa4\x69\x4c\x7d\xf4\x19\x00\x00\xff\xff\xcc\x46\x34\x9a\x4f\x03\x00\x00")
+
+func _1528395720_indexer_configuration_fieldsUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__1528395720_indexer_configuration_fieldsUpSql,
+		"1528395720_indexer_configuration_fields.up.sql",
+	)
+}
+
+func _1528395720_indexer_configuration_fieldsUpSql() (*asset, error) {
+	bytes, err := _1528395720_indexer_configuration_fieldsUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "1528395720_indexer_configuration_fields.up.sql", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0xc0, 0xd5, 0xa3, 0xca, 0x5a, 0x2, 0xa6, 0xbb, 0x97, 0x4a, 0xec, 0x57, 0xb5, 0xdf, 0x39, 0xf0, 0xa2, 0xfd, 0x9e, 0x1f, 0xf8, 0x4a, 0x3f, 0x78, 0x8b, 0xf0, 0xf0, 0xa8, 0x4f, 0x51, 0x8d, 0x99}}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -1743,6 +1785,8 @@ var _bindata = map[string]func() (*asset, error){
 	"1528395718_user_invalidate_session.up.sql":                                    _1528395718_user_invalidate_sessionUpSql,
 	"1528395719_migration_sql.down.sql":                                            _1528395719_migration_sqlDownSql,
 	"1528395719_migration_sql.up.sql":                                              _1528395719_migration_sqlUpSql,
+	"1528395720_indexer_configuration_fields.down.sql":                             _1528395720_indexer_configuration_fieldsDownSql,
+	"1528395720_indexer_configuration_fields.up.sql":                               _1528395720_indexer_configuration_fieldsUpSql,
 }
 
 // AssetDebug is true if the assets were built with the debug flag enabled.
@@ -1861,6 +1905,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"1528395718_user_invalidate_session.up.sql":                                    {_1528395718_user_invalidate_sessionUpSql, map[string]*bintree{}},
 	"1528395719_migration_sql.down.sql":                                            {_1528395719_migration_sqlDownSql, map[string]*bintree{}},
 	"1528395719_migration_sql.up.sql":                                              {_1528395719_migration_sqlUpSql, map[string]*bintree{}},
+	"1528395720_indexer_configuration_fields.down.sql":                             {_1528395720_indexer_configuration_fieldsDownSql, map[string]*bintree{}},
+	"1528395720_indexer_configuration_fields.up.sql":                               {_1528395720_indexer_configuration_fieldsUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory.

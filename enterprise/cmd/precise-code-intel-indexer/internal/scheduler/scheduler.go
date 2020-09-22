@@ -101,9 +101,14 @@ func (s *Scheduler) queueIndex(ctx context.Context, indexableRepository store.In
 	}()
 
 	id, err := tx.InsertIndex(ctx, store.Index{
-		Commit:       commit,
-		RepositoryID: indexableRepository.RepositoryID,
-		State:        "queued",
+		State:           "queued",
+		Commit:          commit,
+		RepositoryID:    indexableRepository.RepositoryID,
+		InstallImage:    "",
+		InstallCommands: []string{},
+		Root:            "",
+		Indexer:         "sourcegraph/lsif-go:latest",
+		Arguments:       []string{},
 	})
 	if err != nil {
 		return errors.Wrap(err, "store.QueueIndex")
