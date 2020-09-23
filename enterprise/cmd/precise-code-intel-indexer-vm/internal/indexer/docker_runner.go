@@ -35,8 +35,13 @@ func NewDockerRunner(
 
 const dockerDataDir = "/data"
 
-func (r *dockerRunner) Startup(ctx context.Context) error  { return nil }
-func (r *dockerRunner) Teardown(ctx context.Context) error { return nil }
+func (r *dockerRunner) Startup(ctx context.Context) error {
+	return nil
+}
+
+func (r *dockerRunner) Teardown(ctx context.Context) error {
+	return nil
+}
 
 func (r *dockerRunner) Invoke(ctx context.Context, image string, cs *CommandSpec) error {
 	return r.commander.Run(ctx, r.MakeArgs(ctx, image, cs, r.repoDir)...)
@@ -63,15 +68,7 @@ func (r *dockerRunner) volumeMountFlags(mountPoint string) []string {
 }
 
 func (r *dockerRunner) workingDirectoryFlags() []string {
-	return []string{"-w", r.getWorkingDirectory()}
-}
-
-func (r *dockerRunner) getWorkingDirectory() string {
-	// if r.root == "" {
-	// 	return dockerDataDir
-	// }
-
-	return filepath.Join(dockerDataDir, r.root)
+	return []string{"-w", filepath.Join(dockerDataDir, r.root)}
 }
 
 func (r *dockerRunner) envFlags(cs *CommandSpec) []string {
