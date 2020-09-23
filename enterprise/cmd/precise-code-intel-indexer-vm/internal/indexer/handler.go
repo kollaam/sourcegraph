@@ -55,13 +55,14 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		_ = os.RemoveAll(repoDir)
 	}()
 
-	dockerRunner := &dockerRunner{
-		repoDir:            repoDir,
-		firecrackerNumCPUs: h.options.FirecrackerNumCPUs,
-		firecrackerMemory:  h.options.FirecrackerMemory,
-		commander:          h.commander,
-		root:               index.Root,
-	}
+	// TODO - collapse some of these into options
+	dockerRunner := NewDockerRunner(
+		repoDir,
+		h.options.FirecrackerNumCPUs,
+		h.options.FirecrackerMemory,
+		h.commander,
+		index.Root,
+	)
 
 	var runner Runner = dockerRunner
 	if h.options.UseFirecracker {
@@ -70,18 +71,19 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 			return err
 		}
 
-		runner = &firecrackerRunner{
-			repoDir:            repoDir,
-			firecrackerNumCPUs: h.options.FirecrackerNumCPUs,
-			firecrackerMemory:  h.options.FirecrackerMemory,
-			commander:          h.commander,
-			firecrackerImage:   h.options.FirecrackerImage,
-			imageArchivePath:   h.options.ImageArchivePath,
-			name:               name.String(),
-			installImage:       index.InstallImage,
-			indexer:            index.Indexer,
-			dockerRunner:       dockerRunner,
-		}
+		// TODO - collapse some of these into options
+		runner = NewFirecrackerRunner(
+			repoDir,
+			h.options.FirecrackerNumCPUs,
+			h.options.FirecrackerMemory,
+			h.commander,
+			h.options.FirecrackerImage,
+			h.options.ImageArchivePath,
+			name.String(),
+			index.InstallImage,
+			index.Indexer,
+			dockerRunner,
+		)
 	}
 
 	if err := runner.Startup(ctx); err != nil {
@@ -104,6 +106,39 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 	}
 
 	return nil
+}
+
+// fetchRepository creates a temporary directory and performs a git checkout with the given repository
+// and commit. If there is an error, the temporary directory is removed.
+func (h *Handler) fetchRepository(ctx context.Context, repositoryName, commit string) (string, error) {
+	tempDir, err := makeTempDir()
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(tempDir)
+		}
+	}()
+
+	cloneURL, err := makeCloneURL(h.options.FrontendURL, h.options.AuthToken, repositoryName)
+	if err != nil {
+		return "", err
+	}
+
+	commands := [][]string{
+		{"git", "-C", tempDir, "init"},
+		{"git", "-C", tempDir, "-c", "protocol.version=2", "fetch", cloneURL.String(), commit},
+		{"git", "-C", tempDir, "checkout", commit},
+	}
+
+	for _, args := range commands {
+		if err := h.commander.Run(ctx, args...); err != nil {
+			return "", errors.Wrap(err, fmt.Sprintf("failed `%s`", strings.Join(args, " ")))
+		}
+	}
+
+	return tempDir, nil
 }
 
 func (h *Handler) install(ctx context.Context, runner Runner, index store.Index) error {
@@ -161,39 +196,6 @@ var makeTempDir = func() (string, error) {
 	}
 
 	return ioutil.TempDir("", "")
-}
-
-// fetchRepository creates a temporary directory and performs a git checkout with the given repository
-// and commit. If there is an error, the temporary directory is removed.
-func (h *Handler) fetchRepository(ctx context.Context, repositoryName, commit string) (string, error) {
-	tempDir, err := makeTempDir()
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err != nil {
-			_ = os.RemoveAll(tempDir)
-		}
-	}()
-
-	cloneURL, err := makeCloneURL(h.options.FrontendURL, h.options.AuthToken, repositoryName)
-	if err != nil {
-		return "", err
-	}
-
-	commands := [][]string{
-		{"git", "-C", tempDir, "init"},
-		{"git", "-C", tempDir, "-c", "protocol.version=2", "fetch", cloneURL.String(), commit},
-		{"git", "-C", tempDir, "checkout", commit},
-	}
-
-	for _, args := range commands {
-		if err := h.commander.Run(ctx, args...); err != nil {
-			return "", errors.Wrap(err, fmt.Sprintf("failed `%s`", strings.Join(args, " ")))
-		}
-	}
-
-	return tempDir, nil
 }
 
 func makeCloneURL(baseURL, authToken, repositoryName string) (*url.URL, error) {

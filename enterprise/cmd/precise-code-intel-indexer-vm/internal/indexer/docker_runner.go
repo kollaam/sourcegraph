@@ -17,7 +17,21 @@ type dockerRunner struct {
 
 var _ Runner = &dockerRunner{}
 
-// TODO - constructor
+func NewDockerRunner(
+	repoDir string,
+	firecrackerNumCPUs int,
+	firecrackerMemory string,
+	commander Commander,
+	root string,
+) Runner {
+	return &dockerRunner{
+		repoDir:            repoDir,
+		firecrackerNumCPUs: firecrackerNumCPUs,
+		firecrackerMemory:  firecrackerMemory,
+		commander:          commander,
+		root:               root,
+	}
+}
 
 const dockerDataDir = "/data"
 
@@ -53,9 +67,9 @@ func (r *dockerRunner) workingDirectoryFlags() []string {
 }
 
 func (r *dockerRunner) getWorkingDirectory() string {
-	if r.root == "" {
-		return dockerDataDir
-	}
+	// if r.root == "" {
+	// 	return dockerDataDir
+	// }
 
 	return filepath.Join(dockerDataDir, r.root)
 }

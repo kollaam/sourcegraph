@@ -27,7 +27,31 @@ type firecrackerRunner struct {
 
 var _ Runner = &firecrackerRunner{}
 
-// TODO - ctor
+func NewFirecrackerRunner(
+	repoDir string,
+	firecrackerNumCPUs int,
+	firecrackerMemory string,
+	commander Commander,
+	firecrackerImage string,
+	imageArchivePath string,
+	name string,
+	installImage string,
+	indexer string,
+	dockerRunner Runner,
+) Runner {
+	return &firecrackerRunner{
+		repoDir:            repoDir,
+		firecrackerNumCPUs: firecrackerNumCPUs,
+		firecrackerMemory:  firecrackerMemory,
+		commander:          commander,
+		firecrackerImage:   firecrackerImage,
+		imageArchivePath:   imageArchivePath,
+		name:               name,
+		installImage:       installImage,
+		indexer:            indexer,
+		dockerRunner:       dockerRunner,
+	}
+}
 
 const srcCliImage = "sourcegraph/src-cli:latest"
 
