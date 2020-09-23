@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -62,7 +61,7 @@ func TestHandleWithDocker(t *testing.T) {
 		calls := commander.RunFunc.History()
 
 		for i, expectedCall := range expectedCalls {
-			if diff := cmp.Diff(expectedCall, fmt.Sprintf("%s %s", calls[i].Arg1, strings.Join(calls[i].Arg2, " "))); diff != "" {
+			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg1, " ")); diff != "" {
 				t.Errorf("unexpected command (-want +got):\n%s", diff)
 			}
 		}
@@ -116,7 +115,7 @@ func TestHandleWithFirecracker(t *testing.T) {
 			"docker save -o /images/indexer.tar sourcegraph/lsif-go:latest",
 			"docker pull sourcegraph/src-cli:latest",
 			"docker save -o /images/src-cli.tar sourcegraph/src-cli:latest",
-			"ignite run --runtime docker --network-plugin docker-bridge --cpus 8 --memory 32G --copy-files /tmp/testing:/repo-dir --copy-files /images/indexer.tar:/indexer.tar --copy-files /images/src-cli.tar:/src-cli.tar --ssh --name 97b45daf-53d1-48ad-b992-547469d8e438 sourcegraph/ignite-ubuntu:latest",
+			"ignite run --name 97b45daf-53d1-48ad-b992-547469d8e438 --ssh --runtime docker --network-plugin docker-bridge --cpus 8 --memory 32G --copy-files /tmp/testing:/repo-dir --copy-files /images/indexer.tar:/indexer.tar --copy-files /images/src-cli.tar:/src-cli.tar sourcegraph/ignite-ubuntu:latest",
 			"ignite exec 97b45daf-53d1-48ad-b992-547469d8e438 -- docker load -i /indexer.tar",
 			"ignite exec 97b45daf-53d1-48ad-b992-547469d8e438 -- docker load -i /src-cli.tar",
 			"ignite exec 97b45daf-53d1-48ad-b992-547469d8e438 -- docker run --rm --cpus 8 --memory 32G -v /repo-dir:/data -w /data sourcegraph/lsif-go:latest lsif-go --no-animation",
@@ -128,7 +127,7 @@ func TestHandleWithFirecracker(t *testing.T) {
 		calls := commander.RunFunc.History()
 
 		for i, expectedCall := range expectedCalls {
-			if diff := cmp.Diff(expectedCall, fmt.Sprintf("%s %s", calls[i].Arg1, strings.Join(calls[i].Arg2, " "))); diff != "" {
+			if diff := cmp.Diff(expectedCall, strings.Join(calls[i].Arg1, " ")); diff != "" {
 				t.Errorf("unexpected command (-want +got):\n%s", diff)
 			}
 		}

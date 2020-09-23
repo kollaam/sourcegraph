@@ -55,16 +55,6 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		_ = os.RemoveAll(repoDir)
 	}()
 
-	uploadURL, err := makeUploadURL(h.options.FrontendURLFromDocker, h.options.AuthToken)
-	if err != nil {
-		return err
-	}
-
-	name, err := h.uuidGenerator()
-	if err != nil {
-		return err
-	}
-
 	dockerRunner := &dockerRunner{
 		repoDir:            repoDir,
 		firecrackerNumCPUs: h.options.FirecrackerNumCPUs,
@@ -75,6 +65,11 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 
 	var runner Runner = dockerRunner
 	if h.options.UseFirecracker {
+		name, err := h.uuidGenerator()
+		if err != nil {
+			return err
+		}
+
 		runner = &firecrackerRunner{
 			repoDir:            repoDir,
 			firecrackerNumCPUs: h.options.FirecrackerNumCPUs,
@@ -98,89 +93,58 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		}
 	}()
 
-	if index.InstallImage != "" {
-		// if err := runner.Invoke(ctx, index.InstallImage, index.InstallCommands, nil); err != nil {
-		// 	return err
-		// }
-
-		// installationArgs := []string{
-		// 	"docker", "run", "--rm",
-		// 	"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
-		// 	"--memory", h.options.FirecrackerMemory,
-		// 	"-v", fmt.Sprintf("%s:/data", mountPoint),
-		// 	"-w", "/data", // TODO - decide if this can be configured
-		// 	index.InstallImage,
-		// }
-		// installationArgs = append(installationArgs, index.InstallCommands...)
-
-		// if h.options.UseFirecracker {
-		// 	installationArgs = append([]string{"ignite", "exec", name.String(), "--"}, installationArgs...)
-		// }
-		// if err := h.commander.Run(ctx, installationArgs[0], installationArgs[1:]...); err != nil {
-		// 	return errors.Wrap(err, "failed to install project")
-		// }
+	if err := h.install(ctx, runner, index); err != nil {
+		return err
 	}
-
-	// workingDirectory := "/data"
-	// if index.Root != "" {
-	// 	workingDirectory = filepath.Join(workingDirectory, index.Root)
-	// }
-
-	if err := runner.Invoke(ctx, index.Indexer, index.Arguments, nil); err != nil {
+	if err := h.index(ctx, runner, index); err != nil {
+		return err
+	}
+	if err := h.upload(ctx, runner, index); err != nil {
 		return err
 	}
 
-	// indexArgs := []string{
-	// 	"docker", "run", "--rm",
-	// 	"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
-	// 	"--memory", h.options.FirecrackerMemory,
-	// 	"-v", fmt.Sprintf("%s:/data", mountPoint),
-	// 	"-w", workingDirectory,
-	// 	index.Indexer,
-	// }
-	// indexArgs = append(indexArgs, index.Arguments...)
+	return nil
+}
 
-	// if h.options.UseFirecracker {
-	// 	indexArgs = append([]string{"ignite", "exec", name.String(), "--"}, indexArgs...)
-	// }
-	// if err := h.commander.Run(ctx, indexArgs[0], indexArgs[1:]...); err != nil {
-	// 	return errors.Wrap(err, "failed to index repository")
-	// }
+func (h *Handler) install(ctx context.Context, runner Runner, index store.Index) error {
+	if index.InstallImage == "" {
+		return nil
+	}
 
-	args := []string{
+	if err := runner.Invoke(ctx, index.InstallImage, FromArgs(index.InstallCommands)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) index(ctx context.Context, runner Runner, index store.Index) error {
+	if err := runner.Invoke(ctx, index.Indexer, FromArgs(index.Arguments)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+const uploadImage = "sourcegraph/src-cli:latest"
+
+func (h *Handler) upload(ctx context.Context, runner Runner, index store.Index) error {
+	uploadURL, err := makeUploadURL(h.options.FrontendURLFromDocker, h.options.AuthToken)
+	if err != nil {
+		return err
+	}
+
+	cs := FromArgs([]string{
 		"lsif", "upload",
 		"-no-progress",
 		"-repo", index.RepositoryName,
 		"-commit", index.Commit,
 		"-upload-route", "/.internal-code-intel/lsif/upload",
-	}
-	env := []string{
-		fmt.Sprintf("SRC_ENDPOINT=%s", uploadURL.String()),
-	}
-	if err := runner.Invoke(ctx, "sourcegraph/src-cli:latest", args, env); err != nil {
+	}).AddEnv("SRC_ENDPOINT", uploadURL.String())
+
+	if err := runner.Invoke(ctx, uploadImage, cs); err != nil {
 		return err
 	}
-
-	// uploadArgs := []string{
-	// 	"docker", "run", "--rm",
-	// 	"--cpus", strconv.Itoa(h.options.FirecrackerNumCPUs),
-	// 	"--memory", h.options.FirecrackerMemory,
-	// 	"-v", fmt.Sprintf("%s:/data", mountPoint),
-	// 	"-w", workingDirectory,
-	// 	"-e", fmt.Sprintf("SRC_ENDPOINT=%s", uploadURL.String()),
-	// 	,
-	// 	"lsif", "upload",
-	// 	"-no-progress",
-	// 	"-repo", index.RepositoryName,
-	// 	"-commit", index.Commit,
-	// 	"-upload-route", "/.internal-code-intel/lsif/upload",
-	// }
-	// if h.options.UseFirecracker {
-	// 	uploadArgs = append([]string{"ignite", "exec", name.String(), "--"}, uploadArgs...)
-	// }
-	// if err := h.commander.Run(ctx, uploadArgs[0], uploadArgs[1:]...); err != nil {
-	// 	return errors.Wrap(err, "failed to upload index")
-	// }
 
 	return nil
 }
@@ -218,14 +182,14 @@ func (h *Handler) fetchRepository(ctx context.Context, repositoryName, commit st
 	}
 
 	commands := [][]string{
-		{"-C", tempDir, "init"},
-		{"-C", tempDir, "-c", "protocol.version=2", "fetch", cloneURL.String(), commit},
-		{"-C", tempDir, "checkout", commit},
+		{"git", "-C", tempDir, "init"},
+		{"git", "-C", tempDir, "-c", "protocol.version=2", "fetch", cloneURL.String(), commit},
+		{"git", "-C", tempDir, "checkout", commit},
 	}
 
 	for _, args := range commands {
-		if err := h.commander.Run(ctx, "git", args...); err != nil {
-			return "", errors.Wrap(err, fmt.Sprintf("failed `git %s`", strings.Join(args, " ")))
+		if err := h.commander.Run(ctx, args...); err != nil {
+			return "", errors.Wrap(err, fmt.Sprintf("failed `%s`", strings.Join(args, " ")))
 		}
 	}
 

@@ -1,196 +1,170 @@
 package indexer
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strconv"
+	"io"
+	"os/exec"
+	"strings"
+	"sync"
 
 	"github.com/inconshreveable/log15"
-	"github.com/pkg/errors"
 )
 
 type Runner interface {
 	Startup(ctx context.Context) error
 	Teardown(ctx context.Context) error
-	Invoke(ctx context.Context, image string, commands, env []string) error
-	MakeArgs(ctx context.Context, image string, commands, env []string, mountPoint string) []string
+	Invoke(ctx context.Context, image string, cs *CommandSpec) error
+	MakeArgs(ctx context.Context, image string, cs *CommandSpec, mountPoint string) []string
+}
+
+type CommandSpec struct {
+	command []string
+	env     map[string]string
+}
+
+func FromArgs(args []string) *CommandSpec {
+	cs := &CommandSpec{
+		env: map[string]string{},
+	}
+
+	return cs.AddArgs(args...)
+}
+
+func (cs *CommandSpec) AddArgs(args ...string) *CommandSpec {
+	cs.command = append(cs.command, args...)
+	return cs
+}
+
+func (cs *CommandSpec) AddFlag(name, value string) *CommandSpec {
+	cs.command = append(cs.command, name, value)
+	return cs
+}
+
+// TODO - maybe not this format?
+func (cs *CommandSpec) AddEnv(name, value string) *CommandSpec {
+	cs.env[name] = value
+	return cs
 }
 
 //
 //
-//
 
-type dockerRunner struct {
-	repoDir            string
-	firecrackerNumCPUs int
-	firecrackerMemory  string
-	commander          Commander
-	root               string
+// Commander abstracts running processes on the host machine.
+type Commander interface {
+	// Run invokes the given command on the host machine.
+	Run(ctx context.Context, args ...string) error
 }
 
-var _ Runner = &dockerRunner{}
+// CommanderFunc is a function version of the Commander interface.
+type CommanderFunc func(ctx context.Context, args ...string) error
 
-func (r *dockerRunner) Startup(ctx context.Context) error {
-	return nil
+// Run invokes the given command on the host machine. See the Commander interface for additional details.
+func (f CommanderFunc) Run(ctx context.Context, args ...string) error {
+	return f(ctx, args...)
 }
 
-func (r *dockerRunner) Teardown(ctx context.Context) error {
-	return nil
-}
+// DefaultCommander is a commander that uses exec.Cmd to invoke commands on the host machine.
+var DefaultCommander Commander = CommanderFunc(runCommand)
 
-func (r *dockerRunner) Invoke(ctx context.Context, image string, commands, env []string) error {
-	args := r.MakeArgs(ctx, image, commands, env, r.repoDir)
-	if err := r.commander.Run(ctx, args[0], args[1:]...); err != nil {
-		return errors.Wrap(err, "failed to SOMETHING")
+// runCommand invokes the given command on the host machine.
+func runCommand(ctx context.Context, args ...string) error {
+	command, args := args[0], args[1:]
+	switch command {
+	case "git":
+	case "docker":
+	case "ignite":
+
+	default:
+		return fmt.Errorf("illegal command '%s'", command)
 	}
 
-	return nil
-}
+	// TODO
+	// errors.Wrap(err, fmt.Sprintf("failed `%s`", strings.Join(args, " ")))
 
-func (r *dockerRunner) MakeArgs(ctx context.Context, image string, commands, env []string, mountPoint string) []string {
-	workingDirectory := "/data"
-	if r.root != "" {
-		workingDirectory = filepath.Join(workingDirectory, r.root)
+	cmd, stdout, stderr, err := makeCommand(ctx, command, args...)
+	if err != nil {
+		return err
 	}
 
-	args := []string{
-		"docker", "run", "--rm",
-		"--cpus", strconv.Itoa(r.firecrackerNumCPUs),
-		"--memory", r.firecrackerMemory,
-		"-v", fmt.Sprintf("%s:/data", mountPoint),
-		"-w", workingDirectory,
-	}
-	for _, e := range env {
-		args = append(args, "-e", e)
-	}
-	args = append(args, image)
-	args = append(args, commands...)
+	log15.Debug(fmt.Sprintf("Running command: %s %s", command, strings.Join(args, " ")))
 
-	return args
-}
-
-//
-//
-//
-
-type firecrackerRunner struct {
-	repoDir            string
-	firecrackerNumCPUs int
-	firecrackerMemory  string
-	commander          Commander
-	firecrackerImage   string
-	imageArchivePath   string
-	name               string
-	installImage       string
-	indexer            string
-	dockerRunner       *dockerRunner
-}
-
-var _ Runner = &firecrackerRunner{}
-
-func (r *firecrackerRunner) Startup(ctx context.Context) error {
-	mountPoint := "/repo-dir"
-
-	images := map[string]string{
-		"indexer": r.indexer,
-		"src-cli": "sourcegraph/src-cli:latest",
-	}
-	if r.installImage != "" {
-		images["install"] = r.installImage
-	}
-	var keys []string
-	for k := range images {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	copyfiles := []string{}
-	for _, key := range keys {
-		image := images[key]
-
-		tarfile := filepath.Join(r.imageArchivePath, fmt.Sprintf("%s.tar", key))
-		copyfiles = append(copyfiles, "--copy-files", fmt.Sprintf("%s:%s", tarfile, fmt.Sprintf("/%s.tar", key)))
-
-		if _, err := os.Stat(tarfile); err == nil {
-			continue
-		} else if !os.IsNotExist(err) {
-			return err
-		}
-
-		if err := r.commander.Run(ctx, "docker", "pull", image); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to pull %s", image))
-		}
-		if err := r.commander.Run(ctx, "docker", "save", "-o", tarfile, image); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to save %s", image))
-		}
-	}
-
-	args := []string{
-		"ignite", "run",
-		"--runtime", "docker",
-		"--network-plugin", "docker-bridge",
-		"--cpus", strconv.Itoa(r.firecrackerNumCPUs),
-		"--memory", r.firecrackerMemory,
-		"--copy-files", fmt.Sprintf("%s:%s", r.repoDir, mountPoint),
-	}
-	args = append(args, copyfiles...)
-	args = append(
-		args,
-		"--ssh",
-		"--name", r.name,
-		sanitizeImage(r.firecrackerImage),
+	wg := parallel(
+		func() { processStream("stdout", stdout) },
+		func() { processStream("stderr", stderr) },
 	)
-	if err := r.commander.Run(ctx, args[0], args[1:]...); err != nil {
-		return errors.Wrap(err, "failed to start firecracker vm")
+
+	if err := cmd.Start(); err != nil {
+		return err
 	}
 
-	for _, key := range keys {
-		image := images[key]
+	wg.Wait()
 
-		if err := r.commander.Run(ctx, "ignite", "exec", r.name, "--", "docker", "load", "-i", fmt.Sprintf("/%s.tar", key)); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to load %s", image))
-		}
-	}
-
-	return r.dockerRunner.Startup(ctx)
-}
-
-func (r *firecrackerRunner) Teardown(ctx context.Context) error {
-	stopArgs := []string{
-		"ignite", "stop",
-		"--runtime", "docker",
-		"--network-plugin", "docker-bridge",
-		r.name,
-	}
-	if err := r.commander.Run(ctx, stopArgs[0], stopArgs[1:]...); err != nil {
-		log15.Warn("failed to stop firecracker vm", "name", r.name, "err", err)
-	}
-
-	removeArgs := []string{
-		"ignite", "rm", "-f",
-		"--runtime", "docker",
-		"--network-plugin", "docker-bridge",
-		r.name,
-	}
-	if err := r.commander.Run(ctx, removeArgs[0], removeArgs[1:]...); err != nil {
-		log15.Warn("failed to remove firecracker vm", "name", r.name, "err", err)
-	}
-
-	return r.dockerRunner.Teardown(ctx)
-}
-
-func (r *firecrackerRunner) Invoke(ctx context.Context, image string, commands, env []string) error {
-	args := r.MakeArgs(ctx, image, commands, env, "/repo-dir")
-	if err := r.commander.Run(ctx, args[0], args[1:]...); err != nil {
-		return errors.Wrap(err, "failed to SOMETHING")
+	if err := cmd.Wait(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (r *firecrackerRunner) MakeArgs(ctx context.Context, image string, commands, env []string, mountPoint string) []string {
-	return append([]string{"ignite", "exec", r.name, "--"}, r.dockerRunner.MakeArgs(ctx, image, commands, env, mountPoint)...)
+// makeCommand returns a new exec.Cmd and pipes to its stdout/stderr streams.
+func makeCommand(ctx context.Context, command string, args ...string) (_ *exec.Cmd, stdout, stderr io.Reader, err error) {
+	cmd := exec.CommandContext(ctx, command, args...)
+
+	stdout, err = cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	stderr, err = cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return cmd, stdout, stderr, nil
+}
+
+// parallel runs each function in its own goroutine and returns a wait group that
+// blocks until all invocations have returned.
+func parallel(funcs ...func()) *sync.WaitGroup {
+	var wg sync.WaitGroup
+
+	for _, f := range funcs {
+		wg.Add(1)
+
+		go func(f func()) {
+			defer wg.Done()
+			f()
+		}(f)
+	}
+
+	return &wg
+}
+
+// processStream prefixes and logs each line of the given reader.
+func processStream(prefix string, r io.Reader) {
+	scanner := bufio.NewScanner(r)
+
+	for scanner.Scan() {
+		log15.Info(fmt.Sprintf("%s: %s", prefix, scanner.Text()))
+	}
+}
+
+//
+//
+//
+
+func concatAll(values ...interface{}) []string {
+	var union []string
+	for _, v := range values {
+		switch val := v.(type) {
+		case []string:
+			union = append(union, val...)
+		case string:
+			union = append(union, val)
+		}
+	}
+
+	return union
 }
