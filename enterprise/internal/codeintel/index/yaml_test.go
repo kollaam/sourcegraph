@@ -50,6 +50,10 @@ func TestUnmarshalYAML(t *testing.T) {
 		IndexJobs: []IndexJob{
 			{
 				Root: "",
+				Install: InstallationConfiguration{
+					Image:    "",
+					Commands: []string{},
+				},
 				Index: IndexConfiguration{
 					Indexer:   "sourcegraph/lsif-go:latest",
 					Arguments: []string{"lsif-go", "--no-animation"},

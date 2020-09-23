@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/sourcegraph/jsonx"
+	"github.com/sourcegraph/sourcegraph/internal/jsonc"
 )
 
 type jsonAutoIndexConfiguration struct {
@@ -34,9 +34,9 @@ type jsonIndexConfiguration struct {
 }
 
 func UnmarshalJSON(data []byte) (AutoIndexConfiguration, error) {
-	jsonData, errs := jsonx.Parse(string(data), jsonx.ParseOptions{Comments: true, TrailingCommas: true})
-	if len(errs) > 0 {
-		return AutoIndexConfiguration{}, fmt.Errorf("invalid JSON: %v", errs)
+	jsonData, err := jsonc.Parse(string(data))
+	if err != nil {
+		return AutoIndexConfiguration{}, fmt.Errorf("invalid JSON: %v", err)
 	}
 
 	configuration := jsonAutoIndexConfiguration{}
