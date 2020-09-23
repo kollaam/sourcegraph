@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -72,13 +73,21 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		mountPoint = "/repo-dir"
 
 		images := map[string]string{
-			"install": index.InstallImage,
 			"indexer": index.Indexer,
 			"src-cli": "sourcegraph/src-cli:latest",
 		}
+		if index.InstallImage != "" {
+			images["install"] = index.InstallImage
+		}
+		var keys []string
+		for k := range images {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
 
 		copyfiles := []string{}
-		for key, image := range images {
+		for _, key := range keys {
+			image := images[key]
 			tarfile := filepath.Join(h.options.ImageArchivePath, fmt.Sprintf("%s.tar", key))
 			copyfiles = append(copyfiles, "--copy-files", fmt.Sprintf("%s:%s", tarfile, fmt.Sprintf("/%s.tar", key)))
 
@@ -136,7 +145,8 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 			}
 		}()
 
-		for key, image := range images {
+		for _, key := range keys {
+			image := images[key]
 			if err := h.commander.Run(ctx, "ignite", "exec", name.String(), "--", "docker", "load", "-i", fmt.Sprintf("/%s.tar", key)); err != nil {
 				return errors.Wrap(err, fmt.Sprintf("failed to load %s", image))
 			}
