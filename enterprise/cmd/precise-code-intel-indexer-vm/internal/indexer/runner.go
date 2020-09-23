@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	"github.com/inconshreveable/log15"
@@ -15,7 +16,7 @@ type Runner interface {
 	Startup(ctx context.Context) error
 	Teardown(ctx context.Context) error
 	Invoke(ctx context.Context, image string, commands, env []string) error
-	MakeArgs(ctx context.Context, image string, commands, env []string) []string
+	MakeArgs(ctx context.Context, image string, commands, env []string, mountPoint string) []string
 }
 
 //
@@ -41,7 +42,7 @@ func (r *dockerRunner) Teardown(ctx context.Context) error {
 }
 
 func (r *dockerRunner) Invoke(ctx context.Context, image string, commands, env []string) error {
-	args := r.MakeArgs(ctx, image, commands, env)
+	args := r.MakeArgs(ctx, image, commands, env, r.repoDir)
 	if err := r.commander.Run(ctx, args[0], args[1:]...); err != nil {
 		return errors.Wrap(err, "failed to SOMETHING")
 	}
@@ -49,9 +50,7 @@ func (r *dockerRunner) Invoke(ctx context.Context, image string, commands, env [
 	return nil
 }
 
-func (r *dockerRunner) MakeArgs(ctx context.Context, image string, commands, env []string) []string {
-	mountPoint := r.repoDir // TODO - might change if wrapped
-
+func (r *dockerRunner) MakeArgs(ctx context.Context, image string, commands, env []string, mountPoint string) []string {
 	workingDirectory := "/data"
 	if r.root != "" {
 		workingDirectory = filepath.Join(workingDirectory, r.root)
@@ -64,13 +63,12 @@ func (r *dockerRunner) MakeArgs(ctx context.Context, image string, commands, env
 		"-v", fmt.Sprintf("%s:/data", mountPoint),
 		"-w", workingDirectory,
 	}
-	args = append(args, image)
 	for _, e := range env {
 		args = append(args, "-e", e)
 	}
+	args = append(args, image)
 	args = append(args, commands...)
 
-	fmt.Printf("Args: %v\n", args)
 	return args
 }
 
@@ -86,6 +84,8 @@ type firecrackerRunner struct {
 	firecrackerImage   string
 	imageArchivePath   string
 	name               string
+	installImage       string
+	indexer            string
 	dockerRunner       *dockerRunner
 }
 
@@ -95,14 +95,22 @@ func (r *firecrackerRunner) Startup(ctx context.Context) error {
 	mountPoint := "/repo-dir"
 
 	images := map[string]string{
-		// TODO
-		// "install": index.InstallImage,
-		// "indexer": index.Indexer,
+		"indexer": r.indexer,
 		"src-cli": "sourcegraph/src-cli:latest",
 	}
+	if r.installImage != "" {
+		images["install"] = r.installImage
+	}
+	var keys []string
+	for k := range images {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 
 	copyfiles := []string{}
-	for key, image := range images {
+	for _, key := range keys {
+		image := images[key]
+
 		tarfile := filepath.Join(r.imageArchivePath, fmt.Sprintf("%s.tar", key))
 		copyfiles = append(copyfiles, "--copy-files", fmt.Sprintf("%s:%s", tarfile, fmt.Sprintf("/%s.tar", key)))
 
@@ -139,7 +147,9 @@ func (r *firecrackerRunner) Startup(ctx context.Context) error {
 		return errors.Wrap(err, "failed to start firecracker vm")
 	}
 
-	for key, image := range images {
+	for _, key := range keys {
+		image := images[key]
+
 		if err := r.commander.Run(ctx, "ignite", "exec", r.name, "--", "docker", "load", "-i", fmt.Sprintf("/%s.tar", key)); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to load %s", image))
 		}
@@ -173,7 +183,7 @@ func (r *firecrackerRunner) Teardown(ctx context.Context) error {
 }
 
 func (r *firecrackerRunner) Invoke(ctx context.Context, image string, commands, env []string) error {
-	args := r.MakeArgs(ctx, image, commands, env)
+	args := r.MakeArgs(ctx, image, commands, env, "/repo-dir")
 	if err := r.commander.Run(ctx, args[0], args[1:]...); err != nil {
 		return errors.Wrap(err, "failed to SOMETHING")
 	}
@@ -181,6 +191,6 @@ func (r *firecrackerRunner) Invoke(ctx context.Context, image string, commands, 
 	return nil
 }
 
-func (r *firecrackerRunner) MakeArgs(ctx context.Context, image string, commands, env []string) []string {
-	return append([]string{"ignite", "exec", r.name, "--"}, r.dockerRunner.MakeArgs(ctx, image, commands, env)...)
+func (r *firecrackerRunner) MakeArgs(ctx context.Context, image string, commands, env []string, mountPoint string) []string {
+	return append([]string{"ignite", "exec", r.name, "--"}, r.dockerRunner.MakeArgs(ctx, image, commands, env, mountPoint)...)
 }
