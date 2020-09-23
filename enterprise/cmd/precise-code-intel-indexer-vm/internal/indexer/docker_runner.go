@@ -5,31 +5,31 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
 type dockerRunner struct {
-	repoDir            string
-	firecrackerNumCPUs int
-	firecrackerMemory  string
-	commander          Commander
-	root               string
+	commander Commander
+	options   HandlerOptions
+	//
+	repoDir string
+	index   store.Index
 }
 
 var _ Runner = &dockerRunner{}
 
 func NewDockerRunner(
-	repoDir string,
-	firecrackerNumCPUs int,
-	firecrackerMemory string,
 	commander Commander,
-	root string,
+	options HandlerOptions,
+	repoDir string,
+	index store.Index,
 ) Runner {
 	return &dockerRunner{
-		repoDir:            repoDir,
-		firecrackerNumCPUs: firecrackerNumCPUs,
-		firecrackerMemory:  firecrackerMemory,
-		commander:          commander,
-		root:               root,
+		commander: commander,
+		options:   options,
+		repoDir:   repoDir,
+		index:     index,
 	}
 }
 
@@ -60,7 +60,7 @@ func (r *dockerRunner) MakeArgs(ctx context.Context, image string, cs *CommandSp
 }
 
 func (r *dockerRunner) resourceFlags() []string {
-	return []string{"--cpus", strconv.Itoa(r.firecrackerNumCPUs), "--memory", r.firecrackerMemory}
+	return []string{"--cpus", strconv.Itoa(r.options.FirecrackerNumCPUs), "--memory", r.options.FirecrackerMemory}
 }
 
 func (r *dockerRunner) volumeMountFlags(mountPoint string) []string {
@@ -68,7 +68,7 @@ func (r *dockerRunner) volumeMountFlags(mountPoint string) []string {
 }
 
 func (r *dockerRunner) workingDirectoryFlags() []string {
-	return []string{"-w", filepath.Join(dockerDataDir, r.root)}
+	return []string{"-w", filepath.Join(dockerDataDir, r.index.Root)}
 }
 
 func (r *dockerRunner) envFlags(cs *CommandSpec) []string {

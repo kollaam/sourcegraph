@@ -55,35 +55,9 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 		_ = os.RemoveAll(repoDir)
 	}()
 
-	// TODO - collapse some of these into options
-	dockerRunner := NewDockerRunner(
-		repoDir,
-		h.options.FirecrackerNumCPUs,
-		h.options.FirecrackerMemory,
-		h.commander,
-		index.Root,
-	)
-
-	var runner Runner = dockerRunner
-	if h.options.UseFirecracker {
-		name, err := h.uuidGenerator()
-		if err != nil {
-			return err
-		}
-
-		// TODO - collapse some of these into options
-		runner = NewFirecrackerRunner(
-			repoDir,
-			h.options.FirecrackerNumCPUs,
-			h.options.FirecrackerMemory,
-			h.commander,
-			h.options.FirecrackerImage,
-			h.options.ImageArchivePath,
-			name.String(),
-			index.InstallImage,
-			index.Indexer,
-			dockerRunner,
-		)
+	runner, err := h.createRunner(repoDir, index)
+	if err != nil {
+		return err
 	}
 
 	if err := runner.Startup(ctx); err != nil {
@@ -106,6 +80,19 @@ func (h *Handler) Handle(ctx context.Context, _ workerutil.Store, record workeru
 	}
 
 	return nil
+}
+
+func (h *Handler) createRunner(repoDir string, index store.Index) (Runner, error) {
+	if h.options.UseFirecracker {
+		name, err := h.uuidGenerator()
+		if err != nil {
+			return nil, err
+		}
+
+		return NewFirecrackerRunner(h.commander, h.options, repoDir, name.String(), index), nil
+	}
+
+	return NewDockerRunner(h.commander, h.options, repoDir, index), nil
 }
 
 // fetchRepository creates a temporary directory and performs a git checkout with the given repository

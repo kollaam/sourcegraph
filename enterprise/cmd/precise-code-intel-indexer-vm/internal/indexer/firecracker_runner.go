@@ -8,62 +8,58 @@ import (
 
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
+	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/store"
 )
 
 const firecrackerMountPoint = "/repo-dir"
 
 type firecrackerRunner struct {
-	repoDir            string
-	firecrackerNumCPUs int
-	firecrackerMemory  string
-	commander          Commander
-	firecrackerImage   string
-	imageArchivePath   string
-	name               string
-	installImage       string
-	indexer            string
-	dockerRunner       Runner
-	images             map[string]string
+	commander Commander
+	options   HandlerOptions
+	//
+	repoDir      string
+	name         string
+	index        store.Index
+	images       map[string]string
+	dockerRunner Runner
 }
 
 var _ Runner = &firecrackerRunner{}
 
 func NewFirecrackerRunner(
-	repoDir string,
-	firecrackerNumCPUs int,
-	firecrackerMemory string,
 	commander Commander,
-	firecrackerImage string,
-	imageArchivePath string,
+	options HandlerOptions,
+	repoDir string,
 	name string,
-	installImage string,
-	indexer string,
-	dockerRunner Runner,
+	index store.Index,
 ) Runner {
-	images := map[string]string{
-		"src-cli": srcCliImage,
-		"indexer": indexer,
-	}
-	if installImage != "" {
-		images["install"] = installImage
-	}
+	images := requiredImages(index)
+	dockerRunner := NewDockerRunner(commander, options, repoDir, index)
 
 	return &firecrackerRunner{
-		repoDir:            repoDir,
-		firecrackerNumCPUs: firecrackerNumCPUs,
-		firecrackerMemory:  firecrackerMemory,
-		commander:          commander,
-		firecrackerImage:   firecrackerImage,
-		imageArchivePath:   imageArchivePath,
-		name:               name,
-		installImage:       installImage,
-		indexer:            indexer,
-		dockerRunner:       dockerRunner,
-		images:             images,
+		commander:    commander,
+		options:      options,
+		repoDir:      repoDir,
+		name:         name,
+		index:        index,
+		images:       images,
+		dockerRunner: dockerRunner,
 	}
 }
 
 const srcCliImage = "sourcegraph/src-cli:latest"
+
+func requiredImages(index store.Index) map[string]string {
+	images := map[string]string{
+		"src-cli": srcCliImage,
+		"indexer": index.Indexer,
+	}
+	if index.InstallImage != "" {
+		images["install"] = index.InstallImage
+	}
+
+	return images
+}
 
 var firecrackerCommonFlags = []string{
 	"--runtime", "docker",
@@ -80,7 +76,7 @@ func (r *firecrackerRunner) Startup(ctx context.Context) error {
 		firecrackerCommonFlags,
 		r.resourceFlags(),
 		r.copyFilesFlags(ctx),
-		sanitizeImage(r.firecrackerImage),
+		sanitizeImage(r.options.FirecrackerImage),
 	)
 	if err := r.commander.Run(ctx, runArgs...); err != nil {
 		return errors.Wrap(err, "failed to start firecracker vm")
@@ -102,11 +98,21 @@ func (r *firecrackerRunner) Startup(ctx context.Context) error {
 }
 
 func (r *firecrackerRunner) Teardown(ctx context.Context) error {
-	if err := r.commander.Run(ctx, concatAll("ignite", "stop", firecrackerCommonFlags, r.name)...); err != nil {
+	stopArgs := concatAll(
+		"ignite", "stop",
+		firecrackerCommonFlags,
+		r.name,
+	)
+	if err := r.commander.Run(ctx, stopArgs...); err != nil {
 		log15.Warn("failed to stop firecracker vm", "name", r.name, "err", err)
 	}
 
-	if err := r.commander.Run(ctx, concatAll("ignite", "rm", "-f", firecrackerCommonFlags, r.name)...); err != nil {
+	removeArgs := concatAll(
+		"ignite", "rm", "-f",
+		firecrackerCommonFlags,
+		r.name,
+	)
+	if err := r.commander.Run(ctx, removeArgs...); err != nil {
 		log15.Warn("failed to remove firecracker vm", "name", r.name, "err", err)
 	}
 
@@ -118,7 +124,10 @@ func (r *firecrackerRunner) Invoke(ctx context.Context, image string, cs *Comman
 }
 
 func (r *firecrackerRunner) MakeArgs(ctx context.Context, image string, cs *CommandSpec, mountPoint string) []string {
-	return concatAll("ignite", "exec", r.name, "--", r.dockerRunner.MakeArgs(ctx, image, cs, mountPoint))
+	return concatAll(
+		"ignite", "exec", r.name, "--",
+		r.dockerRunner.MakeArgs(ctx, image, cs, mountPoint),
+	)
 }
 
 func (r *firecrackerRunner) ensureTarfilesOnHost(ctx context.Context, images map[string]string) error {
@@ -129,10 +138,20 @@ func (r *firecrackerRunner) ensureTarfilesOnHost(ctx context.Context, images map
 			continue
 		}
 
-		if err := r.commander.Run(ctx, "docker", "pull", images[key]); err != nil {
+		pullArgs := concatAll(
+			"docker", "pull",
+			images[key],
+		)
+		if err := r.commander.Run(ctx, pullArgs...); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to pull %s", images[key]))
 		}
-		if err := r.commander.Run(ctx, "docker", "save", "-o", r.tarfilePathOnHost(key), images[key]); err != nil {
+
+		saveArgs := concatAll(
+			"docker", "save",
+			"-o", r.tarfilePathOnHost(key),
+			images[key],
+		)
+		if err := r.commander.Run(ctx, saveArgs...); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("failed to save %s", images[key]))
 		}
 	}
@@ -141,7 +160,7 @@ func (r *firecrackerRunner) ensureTarfilesOnHost(ctx context.Context, images map
 }
 
 func (r *firecrackerRunner) resourceFlags() []string {
-	return []string{"--cpus", strconv.Itoa(r.firecrackerNumCPUs), "--memory", r.firecrackerMemory}
+	return []string{"--cpus", strconv.Itoa(r.options.FirecrackerNumCPUs), "--memory", r.options.FirecrackerMemory}
 }
 
 func (r *firecrackerRunner) copyFilesFlags(ctx context.Context) []string {
@@ -157,7 +176,7 @@ func (r *firecrackerRunner) copyFilesFlags(ctx context.Context) []string {
 }
 
 func (r *firecrackerRunner) tarfilePathOnHost(key string) string {
-	return filepath.Join(r.imageArchivePath, fmt.Sprintf("%s.tar", key))
+	return filepath.Join(r.options.ImageArchivePath, fmt.Sprintf("%s.tar", key))
 }
 
 func (r *firecrackerRunner) tarfilePathOnVirtualMachine(key string) string {
