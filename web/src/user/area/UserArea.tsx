@@ -84,7 +84,9 @@ const NotFoundPage: React.FunctionComponent = () => (
     <HeroPage icon={MapSearchIcon} title="404: Not Found" subtitle="Sorry, the requested user page was not found." />
 )
 
-export interface UserAreaRoute extends RouteDescriptor<UserAreaRouteContext> {}
+export interface UserAreaRoute extends RouteDescriptor<UserAreaRouteContext> {
+    hideNamespaceAreaHeader?: boolean
+}
 
 interface UserAreaProps
     extends RouteComponentProps<{ username: string }>,
@@ -275,17 +277,13 @@ export class UserArea extends React.Component<UserAreaProps, UserAreaState> {
             reloadGraphs: this.props.reloadGraphs,
         }
 
-        const routeMatch = this.props.userAreaRoutes.find(({ path, exact }) =>
+        const matchedRoute = this.props.userAreaRoutes.find(({ path, exact }) =>
             matchPath(this.props.location.pathname, { path: this.props.match.url + path, exact })
-        )?.path
-
-        // Hide header and use full-width container for campaigns pages.
-        const isCampaigns = routeMatch === '/campaigns'
-        const hideHeader = isCampaigns
+        )
 
         return (
             <div className="user-area w-100">
-                {!hideHeader && (
+                {!matchedRoute?.hideNamespaceAreaHeader && (
                     <UserAreaHeader
                         {...this.props}
                         {...context}

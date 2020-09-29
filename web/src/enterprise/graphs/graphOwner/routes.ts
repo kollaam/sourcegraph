@@ -3,30 +3,28 @@ import { NavItemWithIconDescriptor } from '../../../util/contributions'
 import { lazyComponent } from '../../../util/lazyComponent'
 import { GraphIcon } from '../icons'
 
+const COMMON: Pick<NamespaceAreaRoute, 'condition' | 'hideNamespaceAreaHeader'> = {
+    condition: () => window.context?.graphsEnabled,
+    hideNamespaceAreaHeader: true,
+}
+
 export const graphOwnerAreaRoutes: readonly NamespaceAreaRoute[] = [
     {
         path: '/graphs',
         exact: true,
         render: lazyComponent(() => import('./GraphOwnerListGraphsPage'), 'GraphOwnerListGraphsPage'),
-        condition: () => window.context?.graphsEnabled,
+        ...COMMON,
     },
     {
         path: '/graphs/new',
         exact: true,
         render: lazyComponent(() => import('./GraphOwnerNewGraphPage'), 'GraphOwnerNewGraphPage'),
-        condition: () => window.context?.graphsEnabled,
+        ...COMMON,
     },
     {
-        path: '/graphs/:name',
-        exact: true,
-        render: lazyComponent(() => import('./GraphOwnerGraphPage'), 'GraphOwnerGraphPage'),
-        condition: () => window.context?.graphsEnabled,
-    },
-    {
-        path: '/graphs/:name/edit',
-        exact: true,
-        render: lazyComponent(() => import('./GraphOwnerEditGraphPage'), 'GraphOwnerEditGraphPage'),
-        condition: () => window.context?.graphsEnabled,
+        path: '/graphs/:graphName',
+        render: lazyComponent(() => import('../graphArea/GraphArea'), 'GraphArea'),
+        ...COMMON,
     },
 ]
 

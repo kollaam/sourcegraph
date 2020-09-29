@@ -150,7 +150,8 @@ export const Layout: React.FunctionComponent<LayoutProps> = props => {
         '/stanford',
         '/cncf',
     ]
-    const isRepogroupPage = repogroupPages.includes(props.location.pathname)
+    const isRepogroupPage =
+        repogroupPages.includes(props.location.pathname) || props.location.pathname.includes('/graphs/') // TODO(sqs)
 
     // TODO add a component layer as the parent of the Layout component rendering "top-level" routes that do not render the navbar,
     // so that Layout can always render the navbar.

@@ -19,7 +19,9 @@ export interface NamespaceAreaContext
     authenticatedUser: AuthenticatedUser | null
 }
 
-export interface NamespaceAreaRoute extends RouteDescriptor<NamespaceAreaContext> {}
+export interface NamespaceAreaRoute extends RouteDescriptor<NamespaceAreaContext> {
+    hideNamespaceAreaHeader?: boolean
+}
 
 export interface NamespaceAreaNavItem
     extends NavItemWithIconDescriptor<{

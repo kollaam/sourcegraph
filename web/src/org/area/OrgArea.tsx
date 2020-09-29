@@ -2,7 +2,7 @@ import { LoadingSpinner } from '@sourcegraph/react-loading-spinner'
 import AlertCircleIcon from 'mdi-react/AlertCircleIcon'
 import MapSearchIcon from 'mdi-react/MapSearchIcon'
 import * as React from 'react'
-import { Route, RouteComponentProps, Switch } from 'react-router'
+import { matchPath, Route, RouteComponentProps, Switch } from 'react-router'
 import { combineLatest, merge, Observable, of, Subject, Subscription } from 'rxjs'
 import { catchError, distinctUntilChanged, map, mapTo, startWith, switchMap } from 'rxjs/operators'
 import { ExtensionsControllerProps } from '../../../../shared/src/extensions/controller'
@@ -75,7 +75,9 @@ const NotFoundPage: React.FunctionComponent = () => (
     <HeroPage icon={MapSearchIcon} title="404: Not Found" subtitle="Sorry, the requested organization was not found." />
 )
 
-export interface OrgAreaRoute extends RouteDescriptor<OrgAreaPageProps> {}
+export interface OrgAreaRoute extends RouteDescriptor<OrgAreaPageProps> {
+    hideNamespaceAreaHeader?: boolean
+}
 
 interface Props
     extends RouteComponentProps<{ name: string }>,
@@ -248,14 +250,20 @@ export class OrgArea extends React.Component<Props> {
             )
         }
 
+        const matchedRoute = this.props.orgAreaRoutes.find(({ path, exact }) =>
+            matchPath(this.props.location.pathname, { path: this.props.match.url + path, exact })
+        )
+
         return (
             <div className="org-area w-100">
-                <OrgHeader
-                    {...this.props}
-                    {...context}
-                    navItems={this.props.orgAreaHeaderNavItems}
-                    className="border-bottom mt-4"
-                />
+                {!matchedRoute.hideNamespaceAreaHeader && (
+                    <OrgHeader
+                        {...this.props}
+                        {...context}
+                        navItems={this.props.orgAreaHeaderNavItems}
+                        className="border-bottom mt-4"
+                    />
+                )}
                 <div className="container mt-3">
                     <ErrorBoundary location={this.props.location}>
                         <React.Suspense fallback={<LoadingSpinner className="icon-inline m-2" />}>
