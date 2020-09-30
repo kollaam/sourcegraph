@@ -19,9 +19,9 @@ export interface VisibleChangesetSpecNodeProps extends ThemeProps {
     history: H.History
     location: H.Location
 
-    /** Used for testing. */
+    /** Used for testing. **/
     queryChangesetSpecFileDiffs?: typeof _queryChangesetSpecFileDiffs
-    /** Expand changeset descriptions, for testing only. */
+    /** Expand changeset descriptions, for testing only. **/
     expandChangesetDescriptions?: boolean
 }
 
@@ -58,7 +58,7 @@ export const VisibleChangesetSpecNode: React.FunctionComponent<VisibleChangesetS
         <>
             <button
                 type="button"
-                className="btn btn-icon test-campaigns-expand-changeset-spec"
+                className="btn btn-icon test-campaigns-expand-changeset-spec d-none d-sm-block"
                 aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
                 onClick={toggleIsExpanded}
             >
@@ -68,8 +68,8 @@ export const VisibleChangesetSpecNode: React.FunctionComponent<VisibleChangesetS
                     <ChevronRightIcon className="icon-inline" aria-label="Expand section" />
                 )}
             </button>
-            <ChangesetSpecAction spec={node} />
-            <div>
+            <ChangesetSpecAction spec={node} className="visible-changeset-spec-node__action" />
+            <div className="visible-changeset-spec-node__information">
                 <div className="d-flex flex-column">
                     <h3>
                         {node.description.__typename === 'ExistingChangesetReference' && (
@@ -80,7 +80,7 @@ export const VisibleChangesetSpecNode: React.FunctionComponent<VisibleChangesetS
                         )}
                     </h3>
                     <div className="mr-2">
-                        <Link to={node.description.baseRepository.url} target="_blank" rel="noopener noreferrer">
+                        <Link to={node.description.baseRepository.url} target="_blank" rel="noopener noreferrer" className="d-block d-sm-inline">
                             {node.description.baseRepository.name}
                         </Link>{' '}
                         {node.description.__typename === 'GitBranchChangesetDescription' && (
@@ -97,6 +97,15 @@ export const VisibleChangesetSpecNode: React.FunctionComponent<VisibleChangesetS
                     <DiffStat {...node.description.diffStat} expandedCounts={true} separateLines={true} />
                 )}
             </div>
+            {/* The button for expanding the information used on xs devices. */}
+            <button type="button"
+                aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+                onClick={toggleIsExpanded} className="visible-changeset-spec-node__show-details btn btn-outline-secondary d-block d-sm-none test-campaigns-expand-changeset-spec">{isExpanded ? (
+                    <ChevronDownIcon className="icon-inline" aria-label="Close section" />
+                ) : (
+                    <ChevronRightIcon className="icon-inline" aria-label="Expand section" />
+                )} Show details
+            </button>
             {isExpanded && (
                 <>
                     <div />
