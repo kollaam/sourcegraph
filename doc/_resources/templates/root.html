@@ -30,21 +30,33 @@
 			<header id="header">
 				<div class="container">
 					<h1 id="logo"><a href="/"><img src="{{asset "sourcegraph-logo-docs.svg"}}" alt="Sourcegraph docs"></a></h1>
-                    <form id="search-form" method="get" action="/search">
-						<input type="text" id="search" name="q" value="{{block "query" .}}{{end}}" placeholder="" spellcheck="false" aria-label="Query" />
-                        <input type="hidden" name="v" value="{{block "version" .}}{{end}}">
-						<button id="search-button" type="submit" aria-label="Search">Search</button>
-					</form>
-                    {{block "versionSelector" .}}{{end}}
-                    <div style="flex:1"></div>
                     <nav class="links">
                         <ul>
                             <li><a href="https://about.sourcegraph.com">About</a></li>
                             <li><a href="https://sourcegraph.com">Sourcegraph.com</a></li>
                         </ul>
                     </nav>
+                    <div style="flex:1"></div>
+                    <form id="search-form" method="get" action="/search">
+						<input type="text" id="search" name="q" value="{{block "query" .}}{{end}}" placeholder="" spellcheck="false" aria-label="Query" />
+                        <input type="hidden" name="v" value="{{block "version" .}}{{end}}">
+						<button id="search-button" type="submit" aria-label="Search">Search</button>
+					</form>
+                    {{block "versionSelector" .}}{{end}}
 				</div>
 			</header>
+            <nav id="sections" class="links">
+                <div class="container" style="display:flex;align-items:center">
+                    <h2 style="font-size:1rem;font-weight:normal;margin:0;color:#777">Documentation:</h2>
+                    <ul>
+                        <li><a href="/#quickstart">Quickstart</a></li>
+                        <li>
+                            <a href="/admin">Admin</a>
+                            <ul><li>Foo</li></ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
 
 			<div id="page">
 				<div class="container">
