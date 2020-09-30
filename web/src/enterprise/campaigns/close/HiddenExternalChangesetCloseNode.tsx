@@ -13,7 +13,7 @@ export const HiddenExternalChangesetCloseNode: React.FunctionComponent<HiddenExt
     node,
 }) => (
     <>
-        <span />
+        <span className="d-none d-sm-block" />
         {/* Hidden changesets are always untouched, so the action will always be "kept". */}
         <ChangesetCloseActionKept />
         <HiddenExternalChangesetInfoCell node={node} />

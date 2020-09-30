@@ -54,7 +54,7 @@ export const ExternalChangesetCloseNode: React.FunctionComponent<ExternalChanges
         <>
             <button
                 type="button"
-                className="btn btn-icon test-campaigns-expand-changeset"
+                className="btn btn-icon test-campaigns-expand-changeset d-none d-sm-block"
                 aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
                 onClick={toggleIsExpanded}
             >
@@ -64,8 +64,8 @@ export const ExternalChangesetCloseNode: React.FunctionComponent<ExternalChanges
                     <ChevronRightIcon className="icon-inline" aria-label="Expand section" />
                 )}
             </button>
-            {willClose ? <ChangesetCloseActionClose /> : <ChangesetCloseActionKept />}
-            <ExternalChangesetInfoCell node={node} viewerCanAdminister={viewerCanAdminister} />
+            {willClose ? <ChangesetCloseActionClose className="external-changeset-close-node__action" /> : <ChangesetCloseActionKept className="external-changeset-close-node__action" />}
+            <ExternalChangesetInfoCell node={node} viewerCanAdminister={viewerCanAdminister} className="external-changeset-close-node__information" />
             <span>{node.checkState && <ChangesetCheckStatusCell checkState={node.checkState} />}</span>
             <span>{node.reviewState && <ChangesetReviewStatusCell reviewState={node.reviewState} />}</span>
             <div className="d-flex justify-content-center">

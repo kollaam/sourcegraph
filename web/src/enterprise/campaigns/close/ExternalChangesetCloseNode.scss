@@ -1,4 +1,17 @@
 .external-changeset-close-node {
+    &__action {
+        @include media-breakpoint-down(xs) {
+            // Need to overwrite .mx-4.
+            margin: 0 !important;
+        }
+    }
+    &__action,
+    &__information {
+        @include media-breakpoint-down(xs) {
+            // Make it full width in the current row.
+            grid-column: 1 / -1;
+        }
+    }
     &__expanded-section {
         // Make it full width in the current row.
         grid-column: 1 / -1;

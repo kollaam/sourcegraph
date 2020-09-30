@@ -10,17 +10,20 @@ import { ChangesetLabel } from './ChangesetLabel'
 import { Link } from '../../../../../../shared/src/components/Link'
 import { ChangesetLastSynced } from './ChangesetLastSynced'
 import { ChangesetReconcilerState } from '../../../../../../shared/src/graphql/schema'
+import classNames from 'classnames'
 
 export interface ExternalChangesetInfoCellProps {
     node: ExternalChangesetFields
     viewerCanAdminister: boolean
+    className?: string
 }
 
 export const ExternalChangesetInfoCell: React.FunctionComponent<ExternalChangesetInfoCellProps> = ({
     node,
     viewerCanAdminister,
+    className
 }) => (
-    <div className="d-flex flex-column">
+    <div className={classNames('d-flex flex-column', className)}>
         <div className="m-0 mb-2">
             <h3 className="m-0 d-inline">
                 <LinkOrSpan
