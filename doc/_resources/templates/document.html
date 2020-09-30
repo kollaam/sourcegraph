@@ -42,7 +42,7 @@
 {{define "index"}}
 	{{with (or (and (eq (len .Doc.Tree) 1) (index .Doc.Tree 0).Children) .Doc.Tree)}}
 		<h4>{{$.Doc.Title}}</h4>
-		<p class="visible-lg on-this-page">On this page:</p>
+		<p class="on-this-page">On this page:</p>
 		<ul>{{template "doc_nav" .}}</ul>
 	{{end}}
     <a class="page-btn" href="https://github.com/sourcegraph/sourcegraph/edit/main/doc/{{.FilePath}}">Edit this page</a>

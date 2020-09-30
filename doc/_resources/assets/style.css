@@ -1,19 +1,25 @@
 /*
-Notes:
+
+NOTES
 
 Make sure you test all the variations:
 
 - Light and dark themes (use Chrome devtools' "Emulate CSS prefers-color-scheme: ..." option)
 - Document pages, search result pages, and 404 pages
-- Wide and narrow screens
+- Wide, medium, and narrow screens (less than var(--sidebar-breakpoint-width), in between, and greater than var(--index-breakpoint-width))
+
+The document content can set class names and IDs on elements (for example, Markdown headers are automatically given IDs so you can link to them with a URL fragment like #my-header-name). Use CSS selectors that start with `body >` and will not accidentally match elements in document content.
 
 */
 
 /* GLOBAL */
 :root {
-  --breakpoint-width: 850px;
+  --sidebar-breakpoint-width: 800px; /* hide sidebar if narrower */
+  --index-breakpoint-width: 1000px; /* show index before (not to the right) if narrower */
   --width: 1100px;
+  --sidebar-width: 230px;
   --spacing: 1rem;
+  --gutter: calc(2*var(--spacing));
 
   --text-color: #000000;
   --border-color: #e2e4e8;
@@ -104,8 +110,8 @@ body {
   max-width: var(--width);
   margin-left: auto;
   margin-right: auto;
-  padding-left: var(--spacing);
-  padding-right: var(--spacing);
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
 }
 body > div#page {
     display: block;
@@ -125,15 +131,6 @@ body > div#page {
   margin: -0.1rem;
 }
 
-@media (max-width: 850px /* == var(--breakpoint-width) */) {
-  .visible-sm { display: unset; }
-  .visible-lg { display: none; }
-}
-@media (min-width: 850px /* == var(--breakpoint-width) */) {
-  .visible-sm { display: none; }
-  .visible-lg { display: unset; }
-}
-
 /* SIDEBAR */
 body > #sidebar {
     background-color: var(--sidebar-bg);
@@ -142,19 +139,52 @@ body > #sidebar {
     position: sticky;
     top: 0;
     flex-shrink: 0;
-    width: 250px;
+    width: var(--sidebar-width);
     overflow-y: auto;
     padding-bottom: calc(1.5*var(--spacing));
 }
 /* Logo */
 body > #sidebar #logo {
-    margin: calc(0.75*var(--spacing)) 0 calc(0.75*var(--spacing));
+    margin: 0;
 }
 body > #sidebar #logo a {
     text-decoration: none;
+    display: block;
+    padding: calc(1.25*var(--spacing)) calc(1.25*var(--spacing)) calc(0.5*var(--spacing)) ;
 }
 body > #sidebar #logo img {
-    width: 180px;
+    width: 170px;
+}
+/* Search form */
+body > #sidebar #search-form {
+    margin-bottom: 0;
+    position: relative;
+    display: flex;
+    padding: calc(0.5*var(--spacing)) calc(1*var(--spacing));
+}
+body > #sidebar #search-form #search {
+    color: var(--text-color);
+    border: solid 1px var(--input-border-color);
+    border-radius: 4px;
+    background-color: var(--body-bg);
+    width: 100%;
+    justify-self: center;
+    padding: calc(0.5*var(--spacing)) calc(0.25*var(--spacing)) calc(0.5*var(--spacing)) calc(2.325*var(--spacing));
+    font-size: 1.0rem;
+}
+body > #sidebar #search-form #search:focus {
+    outline: none;
+    border: solid 1px var(--input-focus-border-color);
+}
+body > #sidebar #search-form .search-icon:after {
+    content: "\26B2";
+    font-size: 1.5rem;
+    color: var(--link-color);
+    transform: rotate(-45deg);
+    display: inline-block;
+    position: absolute;
+    left: 28px;
+    top: 13px;
 }
 /* Nav */
 body > #sidebar nav.links {
@@ -167,13 +197,18 @@ body > #sidebar nav li:not(.external) + li.external {
     margin-top: calc(1.5*var(--spacing));
 }
 
+/* PAGE */
+body > #page {
+
+}
+
 /* FOOTER */
-body > footer {
+body > #page > footer {
     border-top: solid 1px var(--border-color);
     padding: var(--spacing) 0;
     font-size: 90%;
 }
-body > footer > .container {
+body > #page > footer > .container {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -181,111 +216,94 @@ body > footer > .container {
     padding-top: calc(0.5*var(--spacing));
     padding-bottom: calc(0.5*var(--spacing));
 }
-body > footer nav.links ul {
+body > #page > footer nav.links ul {
     display: flex;
 }
-body > footer a {
+body > #page > footer a {
     color: var(--text-muted);
 }
 
 /* SIDEBAR & FOOTER (common) */
-body > #sidebar .external a, body > footer .external a {
+body > #sidebar .external a, body > #page > footer .external a {
     color: var(--text-muted);
 }
 
-/* SEARCH FORM */
-body > #sidebar #search-form {
-    margin-bottom: 0;
-    position: relative;
-    display: flex;
-    padding: calc(0.5*var(--spacing)) calc(1*var(--spacing));
-}
-body > #sidebar #search-form > #search {
-  color: var(--text-color);
-  border: solid 1px var(--input-border-color);
-  border-radius: 4px;
-  background-color: var(--body-bg);
-  width: 100%;
-  justify-self: center;
-  padding: calc(0.5*var(--spacing)) calc(0.25*var(--spacing)) calc(0.5*var(--spacing)) calc(2.325*var(--spacing));
-  font-size: 1.0rem;
-}
-body > #sidebar #search-form > #search:focus {
-    outline: none;
-    border: solid 1px var(--input-focus-border-color);
-}
-body > #sidebar #search-form > .search-icon:after {
-    content: "\26B2";
-    font-size: 1.5rem;
-    color: var(--link-color);
-    transform: rotate(-45deg);
-    display: inline-block;
-    position: absolute;
-    left: 28px;
-    top: 13px;
-}
-
 /* DOCUMENT */
-@media (max-width: 850px /* == var(--breakpoint-width) */) {
-    #index {
-
+@media (max-width: 800px /* == var(--sidebar-breakpoint-width) */) {
+    body > #header {
+        display: block;
+    }
+    body > #sidebar {
+        display: none;
     }
 }
-@media (min-width: 850px /* == var(--breakpoint-width) */) {
-	body > #page > main > .container {
+@media (max-width: 1000px /* == var(--index-breakpoint-width) */) {
+    body > #page > main > #index > .on-this-page {
+        display: none;
+    }
+    body > #header {
+        display: none;
+    }
+}
+@media (min-width: 1000px /* == var(--index-breakpoint-width) */) {
+    body > #page > main > #index > .on-this-page {
+        display: block;
+    }
+	body > #page > main {
 		display: flex;
 		flex-direction: row-reverse;
 	}
-	body > #page > main > .container > #index {
+	body > #page > main > #index {
 		flex: 1 1 calc(var(--width) * 0.15);
 		position: sticky;
 		top: calc(2*var(--spacing));
 		max-height: 100vh;
 		padding: var(--spacing);
         border: solid 1px var(--border-color);
-        margin-left: var(--spacing);
+        margin-left: calc(2*var(--spacing));
 	}
 }
 
-#index {
+body > #page > main > #index {
 	font-size: 90%;
 	line-height: 24px;
-	margin-top: calc(2*var(--spacing));
+    margin-top: calc(4*var(--spacing));
 	overflow-y: auto;
     align-self: flex-start;
 }
-#index > h3.version {
+body > #page > main > #index > h3.version {
 	font-weight: bold;
 	font-size: 100%;
 	opacity: 0.7;
 	margin-bottom: 0;
 }
-#index > h4 {
+body > #page > main > #index > h4 {
     margin-top: 0;
 	margin-bottom: 0;
 	padding-bottom: 0;
 }
-#index .on-this-page {
-  opacity: 0.8;
+body > #page > main > #index .on-this-page {
+    opacity: 0.7;
+    margin: 0;
 }
-#index > ul {
+body > #page > main > #index > ul {
 	margin-top: 0.125rem;
 	padding-left: var(--spacing);
 }
-#index > ul ul {
+body > #page > main > #index > ul ul {
 	padding-left: 20px;
 }
-#index > ul li {
+body > #page > main > #index > ul li {
 	list-style: none;
 }
-#index > ul li::before {
+body > #page > main > #index > ul li::before {
 	margin-left: -0.8rem;
 	content: "\203A\00a0";
 }
 
-#content {
+body > #page > main > #content {
 	flex: 8 4;
-	padding-top: var(--spacing);
+	padding-top: calc(3*var(--spacing));
 	padding-bottom: calc(3*var(--spacing));
     overflow: hidden;
 }
